@@ -1,0 +1,31 @@
+{
+  "name": "prompt-to-component",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Natural language to React component generator with live preview",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.3.0",
+    "@codesandbox/sandpack-react": "^2.20.0",
+    "@monaco-editor/react": "^4.7.0",
+    "ai": "^4.3.0",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  }
+}
