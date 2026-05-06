@@ -1,16 +1,22 @@
 {
-  "name": "prompt-to-component",
-  "version": "1.0.0",
+  "name": "@ashios15/prompt-to-component",
+  "version": "2.0.0",
   "private": true,
-  "description": "Natural language to React component generator with live preview",
+  "description": "Prompt → React component with a closed-loop generator + static critic + self-repair pipeline. The LLM writes code, a deterministic AST critic checks it, and failures are fed back for a targeted fix — no human in the loop.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.1.0",
     "@ai-sdk/openai": "^1.3.0",
+    "@babel/parser": "^7.26.0",
+    "@babel/traverse": "^7.26.0",
+    "@babel/types": "^7.26.0",
     "@codesandbox/sandpack-react": "^2.20.0",
     "@monaco-editor/react": "^4.7.0",
     "ai": "^4.3.0",
@@ -20,12 +26,36 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@types/babel__traverse": "^7.20.6",
     "@types/node": "^22.15.2",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  },
+  "keywords": [
+    "ai",
+    "react",
+    "component-generator",
+    "ai-sdk",
+    "self-repair",
+    "ast",
+    "critic"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashios15/prompt-to-component.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ashios15/prompt-to-component/issues"
+  },
+  "homepage": "https://github.com/ashios15/prompt-to-component#readme",
+  "author": "ashios15",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
   }
 }

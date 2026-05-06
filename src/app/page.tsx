@@ -5,12 +5,15 @@ import { PromptInput } from "@/components/prompt-input";
 import { CodeEditor } from "@/components/code-editor";
 import { LivePreview } from "@/components/live-preview";
 import { HistorySidebar } from "@/components/history-sidebar";
+import { TracePanel, type TraceEntry } from "@/components/trace-panel";
 
 interface GeneratedComponent {
   id: string;
   prompt: string;
   code: string;
   timestamp: number;
+  attempts: number;
+  ok: boolean;
 }
 
 export default function Home() {
@@ -18,57 +21,73 @@ export default function Home() {
   const [history, setHistory] = useState<GeneratedComponent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<"editor" | "preview">("preview");
+  const [trace, setTrace] = useState<TraceEntry[]>([]);
 
-  const handleGenerate = async (prompt: string) => {
+  const run = async (prompt: string, isRefinement: boolean) => {
     setIsGenerating(true);
+    setTrace([]);
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, currentCode: code }),
+        body: JSON.stringify({ prompt, currentCode: code, isRefinement }),
       });
+      if (!response.ok || !response.body) throw new Error("request failed");
 
-      if (!response.ok) throw new Error("Failed to generate");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalCode: string | null = null;
+      let finalAttempts = 0;
+      let finalOk = false;
 
-      const data = await response.json();
-      const generatedCode = data.code;
+      // Consume NDJSON stream: one event per line.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: TraceEntry & { code?: string };
+          try {
+            event = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          setTrace((prev) => [...prev, event]);
+          if (event.phase === "done" && event.code) {
+            finalCode = event.code;
+            finalAttempts = event.attempt ?? 0;
+            finalOk = event.report?.ok ?? false;
+          }
+        }
+      }
 
-      setCode(generatedCode);
-      setHistory((prev) => [
-        {
-          id: crypto.randomUUID(),
-          prompt,
-          code: generatedCode,
-          timestamp: Date.now(),
-        },
+      if (finalCode) {
+        setCode(finalCode);
+        setHistory((prev) => [
+          {
+            id: crypto.randomUUID(),
+            prompt,
+            code: finalCode as string,
+            timestamp: Date.now(),
+            attempts: finalAttempts,
+            ok: finalOk,
+          },
+          ...prev,
+        ]);
+      }
+    } catch (err) {
+      setTrace((prev) => [
         ...prev,
+        {
+          phase: "error",
+          message: err instanceof Error ? err.message : String(err),
+        },
       ]);
-    } catch {
-      // Keep current code on error
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleRefine = async (refinement: string) => {
-    setIsGenerating(true);
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: refinement,
-          currentCode: code,
-          isRefinement: true,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to refine");
-
-      const data = await response.json();
-      setCode(data.code);
-    } catch {
-      // Keep current code on error
     } finally {
       setIsGenerating(false);
     }
@@ -76,46 +95,29 @@ export default function Home() {
 
   return (
     <div className="flex h-screen">
-      {/* History sidebar */}
       <HistorySidebar
         history={history}
         onSelect={(item) => setCode(item.code)}
       />
 
-      {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="border-b border-zinc-800 px-6 py-3 flex items-center justify-between shrink-0">
           <div>
             <h1 className="text-lg font-semibold">Prompt to Component</h1>
             <p className="text-xs text-zinc-500">
-              Describe a React component in plain English
+              Generator → AST critic → self-repair (max 2 attempts)
             </p>
           </div>
           <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
-            <button
-              onClick={() => setActiveTab("preview")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                activeTab === "preview"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
+            <TabBtn active={activeTab === "preview"} onClick={() => setActiveTab("preview")}>
               Preview
-            </button>
-            <button
-              onClick={() => setActiveTab("editor")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                activeTab === "editor"
-                  ? "bg-zinc-700 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
+            </TabBtn>
+            <TabBtn active={activeTab === "editor"} onClick={() => setActiveTab("editor")}>
               Code
-            </button>
+            </TabBtn>
           </div>
         </header>
 
-        {/* Preview / Editor */}
         <div className="flex-1 min-h-0">
           {activeTab === "preview" ? (
             <LivePreview code={code} />
@@ -124,17 +126,39 @@ export default function Home() {
           )}
         </div>
 
-        {/* Prompt input */}
+        <TracePanel entries={trace} isRunning={isGenerating} />
+
         <div className="border-t border-zinc-800 px-6 py-4">
           <PromptInput
-            onGenerate={handleGenerate}
-            onRefine={handleRefine}
+            onGenerate={(p) => run(p, false)}
+            onRefine={(p) => run(p, true)}
             isGenerating={isGenerating}
             hasCode={code !== DEFAULT_CODE}
           />
         </div>
       </main>
     </div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+        active ? "bg-zinc-700 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

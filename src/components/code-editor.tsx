@@ -2,14 +2,17 @@
 
 import dynamic from "next/dynamic";
 
-const Editor = dynamic(() => import("@monaco-editor/react").then((m) => m.default), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
-      Loading editor...
-    </div>
-  ),
-});
+const Editor = dynamic(
+  () => import("@monaco-editor/react").then((m) => m.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+        Loading editor...
+      </div>
+    ),
+  },
+);
 
 interface CodeEditorProps {
   code: string;

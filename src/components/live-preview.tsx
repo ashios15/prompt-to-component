@@ -4,12 +4,12 @@ import dynamic from "next/dynamic";
 
 const SandpackProvider = dynamic(
   () => import("@codesandbox/sandpack-react").then((m) => m.SandpackProvider),
-  { ssr: false }
+  { ssr: false },
 );
 
 const SandpackPreview = dynamic(
   () => import("@codesandbox/sandpack-react").then((m) => m.SandpackPreview),
-  { ssr: false }
+  { ssr: false },
 );
 
 interface LivePreviewProps {
